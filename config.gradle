@@ -1,0 +1,4 @@
+ext {
+
+    isModule = false  //组件开关  true 组件  false 集成。
+}

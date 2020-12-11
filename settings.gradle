@@ -1,0 +1,9 @@
+include ':module_player'
+String projectDir = rootProject.projectDir.getAbsolutePath()
+println("project path is --- " + projectDir)
+include ':library_base'
+include ':module_todolist'
+include ':module_home'
+include ':app:common'
+include ':app'
+rootProject.name = "WanAndroid"
