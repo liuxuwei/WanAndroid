@@ -3,9 +3,12 @@ package com.learn.camera
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
+import android.graphics.ImageFormat
+import android.media.MediaCodec
 import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.util.Size
 import android.widget.Button
 import android.widget.Toast
 import androidx.camera.core.*
@@ -79,6 +82,7 @@ class MainCameraActivity : AppCompatActivity() {
     private fun initView() {
         mCameraCaptureBtn = findViewById(R.id.camera_capture_button)
         mViewFinder = findViewById(R.id.viewFinder)
+
     }
 
     private fun takePhoto() {
@@ -114,6 +118,7 @@ class MainCameraActivity : AppCompatActivity() {
             val cameraProvider = cameraProviderFuture.get()
 
             val preview = Preview.Builder()
+                .setTargetResolution(Size(20, 20))
                 .build()
                 .also {
                     it.setSurfaceProvider(mViewFinder.surfaceProvider)
@@ -152,10 +157,35 @@ class MainCameraActivity : AppCompatActivity() {
             return data // Return the byte array
         }
 
-        override fun analyze(image: ImageProxy) {
 
-            val buffer = image.planes[0].buffer
-            val data = buffer.toByteArray()
+        override fun analyze(image: ImageProxy) {
+            val imageFormat = image.format
+
+            if (imageFormat == ImageFormat.YUV_420_888) {
+                LogUtil.debug("image format is ImageFormat.YUV_420_888 and width is ${image.width} & height is ${image.height}")
+            }
+
+            val bufferY = image.planes[0].buffer
+            val bufferU = image.planes[1].buffer
+            val bufferV = image.planes[2].buffer
+
+            val dataU = bufferU.toByteArray()
+            val dataV = bufferV.toByteArray()
+
+            LogUtil.debug("U Arr is ${dataU.contentToString()}  V Arr is ${dataV.contentToString()}")
+
+            val pixelStrideY = image.planes[0].pixelStride
+            val pixelStrideU = image.planes[1].pixelStride
+            val pixelStrideV = image.planes[2].pixelStride
+
+            val rowStrideY = image.planes[0].rowStride
+            val rowStrideU = image.planes[1].rowStride
+            val rowStrideV = image.planes[2].rowStride
+
+            LogUtil.debug("Y pixelStride is $pixelStrideY  and U pixelStride is $pixelStrideU and V pixelStride is $pixelStrideV  ")
+            LogUtil.debug("Y rowStride is $rowStrideY  and U rowStride is $rowStrideU and V rowStride is $rowStrideV  ")
+
+            val data = bufferY.toByteArray()
             val pixels = data.map { it.toInt() and 0xFF }
             val luma = pixels.average()
 

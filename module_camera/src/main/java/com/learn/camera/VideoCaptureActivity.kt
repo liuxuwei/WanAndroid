@@ -1,7 +1,9 @@
 package com.learn.camera
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
@@ -13,6 +15,7 @@ import androidx.camera.core.VideoCapture
 import androidx.camera.core.VideoCapture.OutputFileOptions
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.learn.base.util.LogUtil
 import java.io.File
@@ -26,6 +29,11 @@ class VideoCaptureActivity : AppCompatActivity() {
 
     //if current state is recording.
     private var mIsRecording = false
+
+    companion object {
+        val REQUEST_PERMISSION = arrayOf(Manifest.permission.RECORD_AUDIO)
+        val REQUEST_CODE = 1
+    }
 
     private val mVideoCaptureBtn: Button by lazy {
         findViewById(R.id.video_capture_btn)
@@ -41,7 +49,15 @@ class VideoCaptureActivity : AppCompatActivity() {
 
         mOutputDir = getOutputDir()
 
-        startCamera()
+        if (allPermissionsGranted()) {
+            startCamera()
+        } else {
+            ActivityCompat.requestPermissions(
+                this,
+                REQUEST_PERMISSION,
+                REQUEST_CODE
+            )
+        }
 
         mVideoCaptureBtn.setOnClickListener {
             if (mIsRecording) {
@@ -62,9 +78,16 @@ class VideoCaptureActivity : AppCompatActivity() {
         return if (mediaFile != null && mediaFile.exists()) mediaFile else filesDir
     }
 
+    private fun allPermissionsGranted() = REQUEST_PERMISSION.all {
+        ContextCompat.checkSelfPermission(
+            baseContext, it
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+
     /**
      * stop recording
      */
+    @SuppressLint("RestrictedApi")
     private fun stopRecording() {
         mVideoCapture.stopRecording()
     }
@@ -72,10 +95,14 @@ class VideoCaptureActivity : AppCompatActivity() {
     /**
      * start recording
      */
+    @SuppressLint("RestrictedApi")
     private fun startRecording() {
         val videoFile = File(
             mOutputDir,
-            SimpleDateFormat(MainCameraActivity.FILENAME_FORMAT, Locale.CHINA).format(System.currentTimeMillis()) + ".mp4"
+            SimpleDateFormat(
+                MainCameraActivity.FILENAME_FORMAT,
+                Locale.CHINA
+            ).format(System.currentTimeMillis()) + ".mp4"
         )
 
         val outputFileOptions = OutputFileOptions.Builder(videoFile).build()
@@ -113,6 +140,7 @@ class VideoCaptureActivity : AppCompatActivity() {
                     it.setSurfaceProvider(mVideoFinder.surfaceProvider)
                 }
 
+
             val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
 
             mVideoCapture = VideoCapture.Builder()
@@ -134,5 +162,21 @@ class VideoCaptureActivity : AppCompatActivity() {
 
 
         }, ContextCompat.getMainExecutor(this))
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQUEST_CODE) {
+            if (allPermissionsGranted()) {
+                startCamera()
+            } else {
+                Toast.makeText(this, "Permission Not Granted.", Toast.LENGTH_LONG).show()
+                finish()
+            }
+        }
     }
 }
