@@ -7,7 +7,7 @@ import android.util.Log
  * Note：LogUtil
  */
 object LogUtil {
-    const val TAG = "LogUtil"
+    private const val TAG = "LogUtil"
 
     fun debug(msg: String) {
         Log.d(TAG, msg)

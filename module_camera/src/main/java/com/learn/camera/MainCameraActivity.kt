@@ -4,23 +4,22 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import android.graphics.ImageFormat
-import android.media.MediaCodec
 import android.net.Uri
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Size
 import android.widget.Button
 import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.core.content.pm.PackageInfoCompat
-import androidx.lifecycle.LiveData
 import com.learn.base.util.LogUtil
+import com.learn.base.util.ThreadManager
 import java.io.File
-import java.lang.Exception
+import java.io.FileOutputStream
+import java.io.IOException
 import java.nio.ByteBuffer
 import java.text.SimpleDateFormat
 import java.util.*
@@ -30,6 +29,7 @@ import java.util.concurrent.Executors
 typealias LumaListener = (luma: Double) -> Unit
 
 class MainCameraActivity : AppCompatActivity() {
+    private lateinit var yuvFile: File
     private lateinit var mViewFinder: PreviewView
     private lateinit var mCameraCaptureBtn: Button
     private var mImageCapture: ImageCapture? = null
@@ -41,7 +41,8 @@ class MainCameraActivity : AppCompatActivity() {
         private const val TAG = "MainCameraActivity"
         const val FILENAME_FORMAT = "yyyy-MM-dd-HH-mm-ss-SSS"
         private const val REQUEST_CODE_PERMISSIONS = 10
-        private val REQUEST_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
+        private val REQUEST_PERMISSIONS =
+            arrayOf(Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -61,6 +62,10 @@ class MainCameraActivity : AppCompatActivity() {
         mCameraCaptureBtn.setOnClickListener { takePhoto() }
 
         mOutputDir = getOutputDir()
+
+        yuvFile = File(mOutputDir, "tempNV12.yuv")
+
+        LogUtil.debug("file name is ${yuvFile.absolutePath}")
 
         mCameraExecutor = Executors.newSingleThreadExecutor()
     }
@@ -82,7 +87,6 @@ class MainCameraActivity : AppCompatActivity() {
     private fun initView() {
         mCameraCaptureBtn = findViewById(R.id.camera_capture_button)
         mViewFinder = findViewById(R.id.viewFinder)
-
     }
 
     private fun takePhoto() {
@@ -91,23 +95,29 @@ class MainCameraActivity : AppCompatActivity() {
 
         val photoFile = File(
             mOutputDir,
-            SimpleDateFormat(FILENAME_FORMAT, Locale.CHINA).format(System.currentTimeMillis()) + ".jpg"
+            SimpleDateFormat(
+                FILENAME_FORMAT,
+                Locale.CHINA
+            ).format(System.currentTimeMillis()) + ".jpg"
         )
 
         val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
 
-        imageCapture.takePicture(outputOptions, ContextCompat.getMainExecutor(this), object : ImageCapture.OnImageSavedCallback{
-            override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-                val savedUri = Uri.fromFile(photoFile)
-                val msg = "photo captured success: $savedUri"
-                Toast.makeText(this@MainCameraActivity, msg, Toast.LENGTH_SHORT).show()
-                LogUtil.debug(msg)
-            }
+        imageCapture.takePicture(
+            outputOptions,
+            ContextCompat.getMainExecutor(this),
+            object : ImageCapture.OnImageSavedCallback {
+                override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+                    val savedUri = Uri.fromFile(photoFile)
+                    val msg = "photo captured success: $savedUri"
+                    Toast.makeText(this@MainCameraActivity, msg, Toast.LENGTH_SHORT).show()
+                    LogUtil.debug(msg)
+                }
 
-            override fun onError(exception: ImageCaptureException) {
-                LogUtil.debug("Photo capture failed: ${exception.message}")
-            }
-        })
+                override fun onError(exception: ImageCaptureException) {
+                    LogUtil.debug("Photo capture failed: ${exception.message}")
+                }
+            })
     }
 
     private fun startCamera() {
@@ -141,7 +151,13 @@ class MainCameraActivity : AppCompatActivity() {
             try {
                 cameraProvider.unbindAll()
 
-                cameraProvider.bindToLifecycle(this, cameraSelector, preview, mImageCapture, imageAnalyzer)
+                cameraProvider.bindToLifecycle(
+                    this,
+                    cameraSelector,
+                    preview,
+                    mImageCapture,
+                    imageAnalyzer
+                )
             } catch (e: Exception) {
                 LogUtil.debug("Use case binding failed $e")
             }
@@ -149,7 +165,8 @@ class MainCameraActivity : AppCompatActivity() {
     }
 
 
-    private class LuminosityAnalyzer(private val listener: LumaListener) :ImageAnalysis.Analyzer {
+    private inner class LuminosityAnalyzer(private val listener: LumaListener) :
+        ImageAnalysis.Analyzer {
         private fun ByteBuffer.toByteArray(): ByteArray {
             rewind()    // Rewind the buffer to zero
             val data = ByteArray(remaining())
@@ -161,6 +178,7 @@ class MainCameraActivity : AppCompatActivity() {
         override fun analyze(image: ImageProxy) {
             val imageFormat = image.format
 
+
             if (imageFormat == ImageFormat.YUV_420_888) {
                 LogUtil.debug("image format is ImageFormat.YUV_420_888 and width is ${image.width} & height is ${image.height}")
             }
@@ -169,29 +187,78 @@ class MainCameraActivity : AppCompatActivity() {
             val bufferU = image.planes[1].buffer
             val bufferV = image.planes[2].buffer
 
+            val dataY = bufferY.toByteArray()
             val dataU = bufferU.toByteArray()
             val dataV = bufferV.toByteArray()
+            val pixels = dataY.map { it.toInt() and 0xFF }
 
-            LogUtil.debug("U Arr is ${dataU.contentToString()}  V Arr is ${dataV.contentToString()}")
+            val dataUV = ByteArray(dataU.size + 2)
+            val uSize = dataY.size / 4
 
-            val pixelStrideY = image.planes[0].pixelStride
-            val pixelStrideU = image.planes[1].pixelStride
-            val pixelStrideV = image.planes[2].pixelStride
 
-            val rowStrideY = image.planes[0].rowStride
-            val rowStrideU = image.planes[1].rowStride
-            val rowStrideV = image.planes[2].rowStride
+            //生成  YYYYYYYYYYYYYYYYUUUUVVVV      ---- I420
+//            for (i in 0 until uSize) {
+//                dataUV[i] = dataU[i * image.planes[1].pixelStride]
+//            }
+//
+//            for (i in 0 until uSize) {
+//                dataUV[uSize + i] = dataV[i * image.planes[2].pixelStride]
+//            }
 
-            LogUtil.debug("Y pixelStride is $pixelStrideY  and U pixelStride is $pixelStrideU and V pixelStride is $pixelStrideV  ")
-            LogUtil.debug("Y rowStride is $rowStrideY  and U rowStride is $rowStrideU and V rowStride is $rowStrideV  ")
 
-            val data = bufferY.toByteArray()
-            val pixels = data.map { it.toInt() and 0xFF }
+            //生成 YYYYYYYYYYYYYYYYUVUVUVUV       ---- NV12
+            for (i in 0 until (dataU.size - 1) / 2) {
+                dataUV[i * 2] = dataU[i * image.planes[1].pixelStride]
+            }
+
+            for (i in 0 until (dataV.size - 1) / 2) {
+                dataUV[2 * i + 1] = dataV[i * image.planes[2].pixelStride]
+            }
+
+
+            //生成 YYYYYYYYYYYYYYYYVUVUVUVU     ---- NV21
+//            for (i in 0 until (dataV.size - 1) / 2) {
+//                dataUV[i * 2] = dataV[i * image.planes[2].pixelStride]
+//            }
+//
+//            for (i in 0 until (dataU.size - 1) / 2) {
+//                dataUV[2 * i + 1] = dataU[i * image.planes[1].pixelStride]
+//            }
+
+
+            ThreadManager.getSingleThreadPool().execute(createRunnable(dataY, dataUV))
             val luma = pixels.average()
 
             listener(luma)
 
             image.close()
+        }
+
+        fun createRunnable(dataY: ByteArray, dataUV: ByteArray): Runnable {
+            return Runnable {
+                //dataY size = image.width * image.height;
+                //dataU size = image.width * image.height / 2 - 1; ???? why minus 1
+                //dataV size = image.width * image.height / 2 - 1; ????  -1
+                val yuvArr = ByteArray(dataY.size + dataUV.size)
+
+                System.arraycopy(dataY, 0, yuvArr, 0, dataY.size)
+                System.arraycopy(dataUV, 0, yuvArr, dataY.size, dataUV.size)
+                dumpYUVFile(yuvFile.absolutePath, yuvArr)
+            }
+        }
+
+
+        fun dumpYUVFile(fileName: String, data: ByteArray) {
+            val outStream: FileOutputStream
+
+            try {
+                outStream = FileOutputStream(fileName)
+                outStream.write(data)
+                outStream.close()
+            } catch (ioe: IOException) {
+                throw RuntimeException("failed writing data to file $fileName", ioe)
+            }
+
         }
     }
 
@@ -215,4 +282,6 @@ class MainCameraActivity : AppCompatActivity() {
             }
         }
     }
+
+
 }
