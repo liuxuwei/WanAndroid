@@ -1,8 +1,7 @@
-package com.learn.camera
+package com.learn.camera.video
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
@@ -18,6 +17,8 @@ import androidx.camera.view.PreviewView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.learn.base.util.LogUtil
+import com.learn.camera.MainCameraActivity
+import com.learn.camera.R
 import java.io.File
 import java.lang.Exception
 import java.text.SimpleDateFormat

@@ -1,4 +1,4 @@
-package com.learn.camera
+package com.learn.camera.global
 
 import android.app.Application
 import android.content.Context

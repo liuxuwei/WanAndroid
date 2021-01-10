@@ -14,12 +14,12 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <application
-        android:name=".CameraApp"
+        android:name=".global.CameraApp"
         android:allowBackup="true"
         android:label="@string/camera_app"
         android:supportsRtl="true"
         android:theme="@style/Theme.WanAndroid">
-        <activity android:name=".VideoCaptureActivity"></activity>
+        <activity android:name=".video.VideoCaptureActivity"></activity>
         <activity android:name=".EntranceActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

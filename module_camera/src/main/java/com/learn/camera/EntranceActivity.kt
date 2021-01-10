@@ -4,6 +4,7 @@ import android.content.Intent
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.widget.Button
+import com.learn.camera.video.VideoCaptureActivity
 
 class EntranceActivity : AppCompatActivity() {
     private val mToPhotoActivityBtn: Button by lazy {

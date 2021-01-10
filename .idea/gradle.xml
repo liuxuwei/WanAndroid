@@ -15,6 +15,7 @@
             <option value="$PROJECT_DIR$/app" />
             <option value="$PROJECT_DIR$/app/common" />
             <option value="$PROJECT_DIR$/library_base" />
+            <option value="$PROJECT_DIR$/module_camera" />
             <option value="$PROJECT_DIR$/module_home" />
             <option value="$PROJECT_DIR$/module_player" />
             <option value="$PROJECT_DIR$/module_todolist" />
