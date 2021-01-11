@@ -1,9 +1,8 @@
-package com.learn.camera
+package com.learn.camera.photo
 
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
-import android.graphics.ImageFormat
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
@@ -18,7 +17,7 @@ import androidx.camera.view.PreviewView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.learn.base.util.LogUtil
-import com.learn.base.util.ThreadManager
+import com.learn.camera.R
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException

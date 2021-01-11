@@ -17,7 +17,7 @@ import androidx.camera.view.PreviewView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.learn.base.util.LogUtil
-import com.learn.camera.MainCameraActivity
+import com.learn.camera.photo.MainCameraActivity
 import com.learn.camera.R
 import java.io.File
 import java.lang.Exception
