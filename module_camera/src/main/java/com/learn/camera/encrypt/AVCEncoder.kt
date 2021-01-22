@@ -14,6 +14,7 @@ object AVCEncoder {
     private const val OUTPUT_MEDIA_FORMAT = MediaFormat.MIMETYPE_VIDEO_AVC
 
     private lateinit var mMediaCodec: MediaCodec
+    private val info: MediaCodec.BufferInfo = MediaCodec.BufferInfo()
 
     private var mVideoWidth = 0
     private var mVideoHeight = 0
@@ -58,6 +59,10 @@ object AVCEncoder {
         mMediaCodec.stop()
         mMediaCodec.release()
         return this
+    }
+
+    fun encodeStream(input: ByteArray, output: ByteArray) {
+
     }
 
 }
