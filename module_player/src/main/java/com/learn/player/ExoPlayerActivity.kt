@@ -2,16 +2,15 @@ package com.learn.player
 
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.View
 import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.exoplayer2.*
 import com.google.android.exoplayer2.analytics.AnalyticsListener
 import com.google.android.exoplayer2.metadata.Metadata
-import com.google.android.exoplayer2.source.LoopingMediaSource
-import com.google.android.exoplayer2.source.ProgressiveMediaSource
-import com.google.android.exoplayer2.source.TrackGroupArray
-import com.google.android.exoplayer2.source.hls.HlsDataSourceFactory
+import com.google.android.exoplayer2.source.*
 import com.google.android.exoplayer2.source.hls.HlsMediaSource
 import com.google.android.exoplayer2.trackselection.DefaultTrackSelector
 import com.google.android.exoplayer2.trackselection.TrackSelectionArray
@@ -21,8 +20,8 @@ import com.google.android.exoplayer2.upstream.DefaultDataSourceFactory
 import com.google.android.exoplayer2.upstream.HttpDataSource.HttpDataSourceException
 import com.google.android.exoplayer2.upstream.HttpDataSource.InvalidResponseCodeException
 import com.google.android.exoplayer2.util.MimeTypes
+import com.google.android.exoplayer2.video.VideoListener
 import com.learn.base.util.LogUtil
-import java.util.*
 
 
 class ExoPlayerActivity : AppCompatActivity(), View.OnClickListener {
@@ -76,8 +75,16 @@ class ExoPlayerActivity : AppCompatActivity(), View.OnClickListener {
 
         mSimpleExoPlayer = SimpleExoPlayer.Builder(this)
             .setTrackSelector(mTrackSelector)
-            .build().apply {
+            .build()
+            .apply {
+
                 addListener(object : Player.EventListener {
+
+                    override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                        super.onMediaItemTransition(mediaItem, reason)
+                    }
+
+
                     override fun onPlaybackStateChanged(state: Int) {
                         super.onPlaybackStateChanged(state)
                         //STATE_IDLE = 1 initial state, does not have any media to play
@@ -185,6 +192,7 @@ class ExoPlayerActivity : AppCompatActivity(), View.OnClickListener {
                         LogUtil.debug("onSeekStarted ---  ${eventTime.currentPlaybackPositionMs}")
                     }
 
+
                     override fun onTracksChanged(
                         eventTime: AnalyticsListener.EventTime,
                         trackGroups: TrackGroupArray,
@@ -193,7 +201,13 @@ class ExoPlayerActivity : AppCompatActivity(), View.OnClickListener {
                         super.onTracksChanged(eventTime, trackGroups, trackSelections)
                         for (i in 0 until trackGroups.length) {
                             for (j in 0 until trackGroups[i].length) {
-                                LogUtil.debug("onTracksChanged ----- ${Format.toLogString(trackGroups[i].getFormat(j))}")
+                                LogUtil.debug(
+                                    "onTracksChanged ----- ${
+                                        Format.toLogString(
+                                            trackGroups[i].getFormat(j)
+                                        )
+                                    }"
+                                )
                             }
                         }
                     }
@@ -208,6 +222,23 @@ class ExoPlayerActivity : AppCompatActivity(), View.OnClickListener {
                     }
                 })
 //            setVideoSurfaceHolder()
+
+                videoComponent?.addVideoListener(object : VideoListener {
+                    override fun onVideoSizeChanged(
+                        width: Int,
+                        height: Int,
+                        unappliedRotationDegrees: Int,
+                        pixelWidthHeightRatio: Float
+                    ) {
+                        super.onVideoSizeChanged(
+                            width,
+                            height,
+                            unappliedRotationDegrees,
+                            pixelWidthHeightRatio
+                        )
+                        LogUtil.debug("onVideoSizeChanged --- $width x $height")
+                    }
+                })
             }
 
         val mediaItem = MediaItem.Builder()
@@ -216,6 +247,7 @@ class ExoPlayerActivity : AppCompatActivity(), View.OnClickListener {
             .build()
         val mediaSource = HlsMediaSource.Factory(DefaultDataSourceFactory(this))
             .createMediaSource(mediaItem)
+
         val loopingMediaSource = LoopingMediaSource(mediaSource)
         mSimpleExoPlayer.setMediaSource(loopingMediaSource)
         mPlayerView.resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FILL
